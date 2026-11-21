@@ -1,8 +1,9 @@
 # Notes
 
 - VK facts come from web search, not yet checked on dev.vk.com:
-  - storage: 1000 keys / user, 1000 calls / hour / user, values live 1 year;
-    value-size limit not found;
+  - storage: 1000 keys / user, 1000 calls / hour / user; the search said
+    values live 1 year, but dev.vk.ru (checked in stage 1) says no expiry and
+    value up to 4096 chars;
   - leaderboard results may need the server method `secure.addAppEvent`
     (service token, only after moderation) — check in stage 5 TRD;
   - `VKWebAppInit` is mandatory; hosting via `@vkontakte/vk-miniapps-deploy`.

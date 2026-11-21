@@ -1,1 +1,3 @@
 - [2026-11-21-project-prd](2026-11-21-project-prd/) — [done] platform survey, all open questions answered, project PRD with 6 v1 stages written and approved
+- [2026-11-21-foundation](2026-11-21-foundation/) — [active] stage 1: tooling, CI deploy, platform port, empty game inside VK
+- [2026-11-21-domain](2026-11-21-domain/) — [done] stage 2: port bot rules (check, Test, Leitner, My words) to pure TS with tests

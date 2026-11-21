@@ -19,6 +19,8 @@ a player can go from first run to "learned" words using only the game.
 - Players: Russian-speaking school students and adults learning English,
   mostly on phones, also desktop.
 - **v1 platform: VK Games** (VK Mini Apps, VK Bridge) — mobile apps and web.
+  App type «Игра», genre **«Словесные»** (VK has no "quiz" / "educational"
+  genre; after catalog publication the genre changes only via support).
 - Later platforms (separate stages): Yandex Games, OK (Odnoklassniki).
 - **Out of scope for this project:** CrazyGames, Poki and other foreign
   portals — the owner plans a different game for them.
@@ -54,12 +56,14 @@ Port the tests (`internal/service/*_test.go`) to Vitest together with the
 logic.
 
 - **Answer check**: any non-letter separates forms; optional leading "to";
-  case and spaces ignored; no typo tolerance; multi-variant forms as in the
-  bot (`docs/USER_GUIDE.md` §3, `was-were-only-both` spec).
+  case and spaces ignored; no typo tolerance; a multi-variant form
+  (`was/were`, `burnt/burned`) accepts any one variant or all together, for
+  every verb (bot code since commit `05e6c44`; the bot's USER_GUIDE and the
+  `was-were-only-both` spec are out of date).
 - **Test**: words of the chosen level and all earlier levels; the player types
   all 3 forms; wrong or hint → word goes to study; correct → "to study" or skip.
 - **Learn (Leitner)**: box 0–5 per mode; correct +1, wrong or "show" → box 0.
-  Mode 1 = 4 choice buttons (correct form, the word's other forms, its common
+  Mode 1 = choice buttons, as many as the bot builds — usually 5 (correct form, the word's other forms, up to 2 common
   mistakes); mode 1 box 5 → mode 2 (typed); mode 2 box 5 → learned. A learned
   word answered wrong on review → study, mode 2 box 0. Pick: 90% study / 10%
   learned, 5-word cooldown. Anchor = one random form, target = another form.
@@ -184,6 +188,13 @@ guest/auth question); OK port; word list and search; English UI.
 - Can a leaderboard result be recorded from the client without a server
   (stage 5).
 - Exact VK moderation checklist for games, current version (stage 6).
+  Known (dev.vk.ru, 2026-11-21): app type «Игра»; registration in the payout
+  cabinet (cashout.vk.com) is required before moderation, even with no ads;
+  «Описание основных сценариев» is filled at submission; «Company Name» (legal
+  entity, or full name of an ИП / self-employed person) is needed for the iOS
+  catalog, otherwise iOS opens the game in the mobile browser; icons and
+  screenshots go to «Оформление» (requirements not read yet); `VKWebAppInit`
+  within 30 s of start; mute on minimize.
 - Sound files: source and license (stage 6).
 
 ## Appendix A. Yandex Games notes (for the later Yandex stage)
