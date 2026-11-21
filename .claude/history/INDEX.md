@@ -1,0 +1,1 @@
+- [2026-11-21-project-prd](2026-11-21-project-prd/) — [done] platform survey, all open questions answered, project PRD with 6 v1 stages written and approved
