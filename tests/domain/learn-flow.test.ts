@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import verbsData from '../../data/verbs.json'
+import { newCatalog } from '../../src/domain/catalog'
 import { formValue } from '../../src/domain/check'
 import { newLearnFlow } from '../../src/domain/learn-flow'
-import type { LearnStep, Progress, RoundView, WordProgress } from '../../src/domain/types'
+import { roundTasks } from '../../src/domain/tasks'
+import type { LearnStep, Progress, RoundView, Verb, WordProgress } from '../../src/domain/types'
 import { learnCatalog, learned, player, seqRng, skipped, study, zeroRng } from './helpers'
 
 const catalog = learnCatalog()
@@ -28,8 +31,8 @@ function startWith(words: Record<string, WordProgress>, rng = zeroRng) {
 // bot: learn_round_test.go (changed: target is never the anchor)
 describe('rounds', () => {
   it('input format: anchor and target are two different forms, no options', () => {
-    // rng: pick (100, n) → go; anchor 0 = base; target others[1] = participle
-    const { step } = startWith({ go: study(2) }, seqRng(0, 0, 0, 1))
+    // rng: pick (100, n) → go; task 1 of go = base → participle
+    const { step } = startWith({ go: study(2) }, seqRng(0, 0, 1))
     const round = roundOf(step)
 
     expect(round.format).toBe('input')
@@ -60,8 +63,8 @@ describe('rounds', () => {
   })
 
   it('round view fields: anchor value joined, repeat flag', () => {
-    // be, anchor 1 = past, target others[0] = base
-    const { step } = startWith({ be: study(2) }, seqRng(0, 0, 1, 0))
+    // be, task 2 = past → base
+    const { step } = startWith({ be: study(2) }, seqRng(0, 0, 2))
     const round = roundOf(step)
 
     expect(round.anchor).toBe('past')
@@ -126,7 +129,7 @@ describe('LearnFlow', () => {
     const next = flow.reveal()
 
     expect(next.kind === 'round' && next.feedback?.result).toBe('hint')
-    expect(p.words.go).toEqual(study(2, 0))
+    expect(p.words.go).toMatchObject(study(2, 0))
   })
 
   it('choosing the correct option bumps the box', () => {
@@ -182,7 +185,7 @@ describe('LearnFlow edge cases', () => {
   })
 
   it.each(['was', 'were'])('tapping either variant of be past (%s) is correct', (pick) => {
-    // be, anchor base, target others[0] = past
+    // be, task 0 = base → past
     const { flow, p, step } = startWith({ be: study(1, 0) })
     const round = roundOf(step)
     expect(round.target).toBe('past')
@@ -212,5 +215,76 @@ describe('LearnFlow edge cases', () => {
     const flow = newLearnFlow(catalog, player({ go: study(2) }), zeroRng)
     expect(flow.type('go')).toEqual({ kind: 'empty' })
     expect(flow.reveal()).toEqual({ kind: 'empty' })
+  })
+})
+
+describe('round tasks: by distinct words, not by form kinds', () => {
+  const real = newCatalog(verbsData.verbs as Verb[])
+  const tasksOf = (base: string) => roundTasks({ verb: real.verb(base)!, variant: 'gb' })
+
+  it('understand (past = participle): 3 tasks, the answer is never the shown word', () => {
+    expect(tasksOf('understand')).toEqual([
+      { anchor: 'base', target: 'past' },
+      { anchor: 'base', target: 'participle' },
+      { anchor: 'past', target: 'base' },
+    ])
+  })
+
+  it('go (all different): 6 tasks', () => {
+    expect(tasksOf('go')).toHaveLength(6)
+  })
+
+  it('cut (all the same): base → past / participle only', () => {
+    expect(tasksOf('cut')).toEqual([
+      { anchor: 'base', target: 'past' },
+      { anchor: 'base', target: 'participle' },
+    ])
+  })
+
+  it('no task on real data shows its own answer (unless all forms are equal)', () => {
+    for (const verb of verbsData.verbs as Verb[]) {
+      for (const variant of ['gb', 'us'] as const) {
+        const values = (['base', 'past', 'participle'] as const).map((kind) => formValue({ verb, kind, variant }))
+        if (new Set(values).size === 1) {
+          continue
+        }
+        for (const t of roundTasks({ verb, variant })) {
+          const shown = formValue({ verb, kind: t.anchor, variant })
+          const answer = formValue({ verb, kind: t.target, variant })
+          expect(answer, `${verb.base} ${variant} ${t.anchor}->${t.target}`).not.toBe(shown)
+        }
+      }
+    }
+  })
+})
+
+describe('round tasks: no repeat for the same word', () => {
+  it('the same word never gets the same task twice in a row', () => {
+    const real = newCatalog(verbsData.verbs as Verb[])
+    const p = player({ understand: study(1), go: study(1) })
+    let x = 7
+    const rng = (n: number) => {
+      x = (x * 1103515245 + 12345) % 2147483648
+      return x % n
+    }
+    const flow = newLearnFlow(real, p, rng)
+    let step = flow.start()
+    const last: Record<string, string> = {}
+    for (let i = 0; i < 300; i++) {
+      const r = roundOf(step)
+      const key = `${r.anchor}->${r.target}`
+      expect(key, `${r.base} at ${i}`).not.toBe(last[r.base])
+      last[r.base] = key
+      step = flow.reveal()
+    }
+  })
+
+  it('the last task is kept on the word through the ladder step', () => {
+    const { flow, p, step } = startWith({ go: study(2, 1) })
+    const task = p.words.go.task
+    expect(task).toBe(0)
+    flow.type(correctAnswer(roundOf(step)))
+    expect(p.words.go.box).toBe(2)
+    expect(p.words.go.task).not.toBe(task)
   })
 })

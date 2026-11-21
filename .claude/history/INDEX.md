@@ -1,3 +1,7 @@
 - [2026-11-21-project-prd](2026-11-21-project-prd/) — [done] platform survey, all open questions answered, project PRD with 6 v1 stages written and approved
 - [2026-11-21-foundation](2026-11-21-foundation/) — [active] stage 1: tooling, CI deploy, platform port, empty game inside VK
 - [2026-11-21-domain](2026-11-21-domain/) — [done] stage 2: port bot rules (check, Test, Leitner, My words) to pure TS with tests
+- [2026-11-21-core-screens](2026-11-21-core-screens/) — [done] stage 3: playable screens in VK (first run, menu, Test, Learn, My words, Settings), saves, theme
+- [2026-11-22-game-layer](2026-11-22-game-layer/) — [done] stage 4: XP, day streak, level progress, achievements, Progress screen
+- [2026-11-22-arcade](2026-11-22-arcade/) — [done] stage 5: Arcade (60 s, x2/x3, −3 s, personal best; VK board needs a server → later)
+- [2026-11-22-polish-release](2026-11-22-polish-release/) — [active] stage 6: sounds, motion, ads (VK catalog requires monetization), legal texts, moderation checklist

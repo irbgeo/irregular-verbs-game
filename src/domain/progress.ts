@@ -13,10 +13,20 @@ export function newProgress(): Progress {
     settings: {
       variant: null,
       level: null,
+      sound: true,
     },
     words: {},
     test: null,
     learn: null,
+    game: {
+      xp: 0,
+      streak: {
+        days: 0,
+        last: null,
+      },
+      achievements: [],
+      arcadeBest: 0,
+    },
   }
   return p
 }

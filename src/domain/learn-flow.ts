@@ -4,17 +4,18 @@ import { applyLadder } from './ladder'
 import { formOptions } from './options'
 import { pickLearnWord, pushRecent } from './pick'
 import { feedbackFor, variantOf } from './progress'
+import { pickTask, roundTasks } from './tasks'
 import type {
   CheckTargetArgs,
   Feedback,
   FeedbackArgs,
   FormArgs,
-  FormKind,
   FormOptionsArgs,
   LadderArgs,
   LearnSession,
   LearnStep,
   PickArgs,
+  PickTaskArgs,
   Progress,
   RecentArgs,
   ResolveArgs,
@@ -22,14 +23,9 @@ import type {
   Round,
   RoundFormat,
   RoundView,
+  TasksArgs,
   Verb,
 } from './types'
-
-const kinds: readonly FormKind[] = [
-  'base',
-  'past',
-  'participle',
-]
 
 // LearnFlow runs Learn / Leitner (bot: learn.go) on a Progress, in place.
 export interface LearnFlow {
@@ -135,7 +131,11 @@ class Flow implements LearnFlow {
         word: word,
         ok: args.ok,
       }
-      this.progress.words[round.base] = applyLadder(ladderArgs)
+      const updated = applyLadder(ladderArgs)
+      if (word.task !== undefined) {
+        updated.task = word.task
+      }
+      this.progress.words[round.base] = updated
     }
 
     let result: Feedback['result'] = args.ok ? 'correct' : 'incorrect'
@@ -193,12 +193,27 @@ class Flow implements LearnFlow {
     }
   }
 
-  // buildRound: anchor = random form; target = one of the two OTHER forms
-  // (the bot could pick the same form — fixed here, see stage 2 PRD).
+  // buildRound: a task from the word's distinct-word tasks, not the one it had
+  // last time (the bot picked form kinds, so equal forms gave trivial or
+  // repeated questions — see stage 4 RESULT).
   private buildRound(base: string): Round {
-    const anchor = kinds[this.rng(kinds.length)]
-    const others = kinds.filter((k) => k !== anchor)
-    const target = others[this.rng(others.length)]
+    const tasksArgs: TasksArgs = {
+      verb: this.verb(base),
+      variant: variantOf(this.progress),
+    }
+    const tasks = roundTasks(tasksArgs)
+    const word = this.progress.words[base]
+    const pickArgs: PickTaskArgs = {
+      count: tasks.length,
+      last: word?.task,
+      rng: this.rng,
+    }
+    const index = pickTask(pickArgs)
+    if (word !== undefined) {
+      word.task = index
+    }
+    const anchor = tasks[index].anchor
+    const target = tasks[index].target
 
     let options: string[] = []
     if (this.format(base) === 'choice') {

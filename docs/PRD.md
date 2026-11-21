@@ -89,6 +89,10 @@ logic.
 - One VK leaderboard of Arcade score (`VKWebAppShowLeaderBoardBox`) **if**
   results can be recorded from the client without a server. If not, v1 shows
   the personal best only and the VK board moves to a later stage.
+  **Result (2026-11-22, stage 5):** not possible from the client —
+  `user_result` is display only; recording needs the server method
+  `secure.addAppEvent` and a published game. v1 = personal best; VK board =
+  later stage with a small server.
 
 ### 3.5 Screens
 1. First run — choose GB/US variant and start level.
@@ -112,6 +116,26 @@ shake on wrong, streak pulse, achievement toast); 4 short sounds (correct,
 wrong, round end, achievement) with an on/off switch, muted when the tab is
 hidden; system font.
 
+Approved mockups (2026-11-21): Claude Design canvas
+https://claude.ai/artifact/PLvTXW5AwVz69wJC4wGtdn — 12 phone screens
+(390×844). Colors: accent `#0077FF` (fills, borders, icons), accent text
+`#006AE0` (small text on light, 5:1), dark accent `#0058BD`, accent soft
+`#E5F1FF`; page `#F5F6FA`, card `#FFFFFF`, border `#E3E5EC`, text `#14161F`,
+muted `#5B6070`; correct `#13804A` / soft `#E3F4EA` / text `#0E6439`; wrong
+`#C62828` / soft `#FDE8E8` / text `#A61B1B`; streak `#E8590C` / soft
+`#FFF1E6` / text `#8A3D00`. Dark: page `#0F1117`, card `#1A1D27`, border
+`#2A2E3B`, text `#F2F3F7`, muted `#A4A9B8`, accent icons `#4DA3FF`. Buttons
+≥56 px high (44 px minimum touch target).
+
+Logo (owner chose variant **A "V3"**, 2026-11-21; canvas row "Логотип —
+варианты", artboard `LogoV3`): white bold "V" with a superscript "3" on a
+`#0077FF` rounded square (corner radius 22% of the side) — "V3" is how Russian
+school English names the third form. Files (2026-11-21, letters drawn as
+shapes, no font): `assets/logo/logo-square.svg` (master, full-bleed — VK
+rounds the corners itself), `logo-rounded.svg` + `logo-rounded-512.png`,
+VK icons `vk-icon-576.png` (universal), `vk-icon-278.png` (catalog),
+`vk-icon-150.png` (small). Rebuild: `rsvg-convert -w N -h N logo-square.svg`.
+
 ### 3.8 Progress storage
 - VK Storage via VK Bridge (`VKWebAppStorageGet/Set`), per VK user, works
   across devices. No own server.
@@ -121,7 +145,10 @@ hidden; system font.
 
 ## 4. Non-goals for v1
 
-- Ads (a later stage, if the game gets players).
+- ~~Ads (a later stage)~~ — **changed 2026-11-22 (stage 6):** VK rules
+  §4.2.1–4.2.2 admit to the games catalog only games with monetization →
+  owner chose ads in v1: interstitial when leaving Arcade result / Test done
+  (≤1 per 60 s) + rewarded «+15 секунд» once per Arcade round.
 - Reminders / push (no channel on the platform).
 - Any link with the bot: no shared backend, no account linking.
 - Full word list by level and search (a later stage).
@@ -179,7 +206,8 @@ RESULT.md. Slugs below are confirmed by the owner.
 | 5 | `arcade` | Timed mode with a board | Arcade round, score and multiplier, −3 s, Leitner updates, personal best, VK leaderboard or the fallback | Rules of §3.4 covered by tests; round playable in VK; leaderboard decision recorded in RESULT | 3 |
 | 6 | `polish-release` | Ready for the catalog | Animations, 4 sounds + switch, mute on hidden tab, check against VK moderation rules, icons/description, send to moderation | Game is accepted into the VK Games catalog | 4, 5 |
 
-Later stages (not v1, order to decide then): ads; Yandex Games port (incl.
+Later stages (not v1, order to decide then): VK leaderboard (small server
+for `secure.addAppEvent`); Yandex Games port (incl.
 guest/auth question); OK port; word list and search; English UI.
 
 ## 8. Open questions (settled in the TRD of the named stage)

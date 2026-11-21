@@ -15,6 +15,8 @@ export interface Catalog {
   verb(base: string): Verb | undefined
   // basesUpTo: the level and all earlier levels, in allBases order.
   basesUpTo(level: Level): string[]
+  // basesOf: this level only, alphabetical.
+  basesOf(level: Level): string[]
 }
 
 class VerbCatalog implements Catalog {
@@ -41,6 +43,12 @@ class VerbCatalog implements Catalog {
   verb(base: string): Verb | undefined {
     const v = this.byBase.get(base)
     return v
+  }
+
+  basesOf(level: Level): string[] {
+    const bases = this.byLevel.get(level) ?? []
+    const copy = [...bases]
+    return copy
   }
 
   basesUpTo(level: Level): string[] {

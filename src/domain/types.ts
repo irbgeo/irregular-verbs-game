@@ -25,11 +25,15 @@ export interface WordProgress {
   // 0 = added from My words and not shown yet; 1 = choice; 2 = typed.
   mode: 0 | 1 | 2
   box: number
+  // index of the last Learn task for this word (see tasks.ts), to avoid repeats
+  task?: number
 }
 
 export interface Settings {
   variant: Variant | null
   level: Level | null
+  // sound effects on (undefined = on, for objects made before stage 6)
+  sound?: boolean
 }
 
 export interface TestCounts {
@@ -60,12 +64,46 @@ export interface LearnSession {
   round: Round | null
 }
 
+export interface Streak {
+  // length of the current run of days with answers
+  days: number
+  // last active day, "YYYY-MM-DD" by the device's local date
+  last: string | null
+}
+
+export type AchievementId =
+  | 'first-word'
+  | 'words-10'
+  | 'words-50'
+  | 'words-100'
+  | 'level-done'
+  | 'streak-3'
+  | 'streak-7'
+  | 'streak-30'
+
+export interface GameStats {
+  xp: number
+  streak: Streak
+  // in unlock order; once unlocked, never removed
+  achievements: AchievementId[]
+  // best Arcade score (Arcade points are not XP)
+  arcadeBest: number
+}
+
 export interface Progress {
   version: 1
   settings: Settings
   words: Record<string, WordProgress>
   test: TestSession | null
   learn: LearnSession | null
+  game: GameStats
+}
+
+// AnswerEvent is one answer for XP: a Test word, a Learn button or a Learn typed answer.
+export interface AnswerEvent {
+  kind: 'test' | 'choice' | 'input'
+  correct: boolean
+  becameLearned: boolean
 }
 
 export type AnswerResult = 'correct' | 'hint' | 'incorrect'
@@ -224,4 +262,86 @@ export interface ItemArgs {
 export interface ResolveArgs {
   ok: boolean
   reveal: boolean
+}
+
+export interface DayArgs {
+  // "YYYY-MM-DD"
+  day: string
+  n: number
+}
+
+export interface StreakArgs {
+  streak: Streak
+  today: string
+}
+
+export interface UnlockArgs {
+  stats: GameStats
+  words: Record<string, WordProgress>
+  catalog: import('./catalog').Catalog
+  today: string
+}
+
+// Task is one kind of Learn question: show `anchor`, ask for `target`.
+export interface Task {
+  anchor: FormKind
+  target: FormKind
+}
+
+export interface TasksArgs {
+  verb: Verb
+  variant: Variant
+}
+
+export interface PickTaskArgs {
+  count: number
+  // the word's last task index, if any
+  last: number | undefined
+  rng: Rng
+}
+
+export interface ArcadeQuestion {
+  base: string
+  anchor: FormKind
+  target: FormKind
+  anchorValue: string
+  options: string[]
+}
+
+// ArcadeRound lives only while the round is played (not saved).
+export interface ArcadeRound {
+  // ms timestamp when time runs out; moves earlier by the penalty per wrong answer
+  endsAt: number
+  pausedAt: number | null
+  score: number
+  // correct answers in a row
+  run: number
+  bestRun: number
+  correct: number
+  wrong: number
+  recent: string[]
+  question: ArcadeQuestion
+  // the round got its one «+15 seconds» after a rewarded ad
+  extended: boolean
+}
+
+export interface ExtendArgs {
+  now: number
+  ms: number
+}
+
+export interface ArcadeAnswerArgs {
+  index: number
+  now: number
+}
+
+export interface ArcadeAnswer {
+  correct: boolean
+  points: number
+}
+
+export interface ArcadeLadderArgs {
+  // undefined = the word is not in the player's list
+  word: WordProgress | undefined
+  correct: boolean
 }
