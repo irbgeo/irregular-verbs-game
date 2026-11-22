@@ -1,94 +1,100 @@
 import { describe, expect, it } from 'vitest'
 import { newMyWords } from '../../src/domain/my-words'
-import type { Draft } from '../../src/domain/types'
+import type { WordProgress } from '../../src/domain/types'
 import { learned, player, skipped, study, testCatalog } from './helpers'
 
-function setup() {
-  const p = player({ go: study(2, 3), be: learned, build: skipped })
-  const words = newMyWords(testCatalog(), p)
-  return { p, words }
+function setup(words: Record<string, WordProgress> = { go: study(2, 3), be: learned, build: skipped }) {
+  const p = player(words)
+  const list = newMyWords(testCatalog(), p)
+  return { p, list }
 }
 
 // bot: lists_builders_test.go TestBuildMyWordsView, lists_forms_test.go
-describe('MyWords.items', () => {
-  it('stored study + learned only, alphabetical, with forms', () => {
-    const { words } = setup()
+describe('My words: list', () => {
+  it('studyBases: stored study + learned, alphabetical', () => {
+    expect(setup().list.studyBases()).toEqual(['be', 'go'])
+  })
 
-    expect(words.items({})).toEqual([
+  it('items: forms, translation, current status (new when no entry)', () => {
+    const { list } = setup()
+    expect(list.items(['be', 'go', 'build'])).toEqual([
       { base: 'be', status: 'learned', past: 'was/were', participle: 'been', translation: 'быть' },
       { base: 'go', status: 'study', past: 'went', participle: 'gone', translation: 'идти' },
+      { base: 'build', status: 'skipped', past: 'built', participle: 'built', translation: 'строить' },
     ])
-  })
-
-  it('draft status is shown; a word drafted to skipped stays until commit', () => {
-    const { words } = setup()
-    const draft: Draft = { go: 'skipped' }
-
-    expect(words.items(draft).map((i) => [i.base, i.status])).toEqual([
-      ['be', 'learned'],
-      ['go', 'skipped'],
-    ])
-
-    words.commit(draft)
-    expect(words.items({}).map((i) => i.base)).toEqual(['be'])
+    expect(setup({}).list.items(['go'])[0].status).toBe('new')
   })
 })
 
-// bot: lists_edit_test.go (My words cases), lists_test.go TestEffectiveStatus
-describe('MyWords.toggle', () => {
-  it('cycles study → learned → skipped → back to stored (draft entry removed)', () => {
-    const { p, words } = setup()
-    let draft: Draft = {}
+describe('My words: cycle at once (owner: no draft)', () => {
+  it('study → learned → skipped → study; back at the start the original progress returns', () => {
+    const { p, list } = setup()
+    const original = p.words.go
 
-    draft = words.toggle({ draft, base: 'go' })
-    expect(draft).toEqual({ go: 'learned' })
-    expect(p.words.go.status).toBe('study')
-
-    draft = words.toggle({ draft, base: 'go' })
-    expect(draft).toEqual({ go: 'skipped' })
-
-    draft = words.toggle({ draft, base: 'go' })
-    expect(draft).toEqual({})
-  })
-
-  it('does not change the given draft object', () => {
-    const { words } = setup()
-    const draft: Draft = {}
-    words.toggle({ draft, base: 'go' })
-    expect(draft).toEqual({})
-  })
-
-  it('unknown word: no change', () => {
-    const { words } = setup()
-    expect(words.toggle({ draft: {}, base: 'nope' })).toEqual({})
-  })
-})
-
-describe('MyWords.commit', () => {
-  it('learned → mode 2, box 5', () => {
-    const { p, words } = setup()
-    words.commit({ go: 'learned' })
+    list.cycle({ base: 'go', original })
     expect(p.words.go).toEqual({ status: 'learned', mode: 2, box: 5 })
-  })
-
-  it('skipped → reset', () => {
-    const { p, words } = setup()
-    words.commit({ go: 'skipped' })
+    list.cycle({ base: 'go', original })
     expect(p.words.go).toEqual({ status: 'skipped', mode: 0, box: 0 })
+    list.cycle({ base: 'go', original })
+    expect(p.words.go).toEqual(study(2, 3))
   })
 
-  it('study keeps mode and box; a word with no entry starts at mode 0', () => {
-    const { p, words } = setup()
-    p.words.go = { status: 'skipped', mode: 2, box: 3 }
-    words.commit({ go: 'study', build: 'study' })
-
-    expect(p.words.go).toEqual({ status: 'study', mode: 2, box: 3 })
+  it('from skipped (not the original) study starts at step 1', () => {
+    const { p, list } = setup()
+    list.cycle({ base: 'build', original: { status: 'learned', mode: 2, box: 5 } })
     expect(p.words.build).toEqual({ status: 'study', mode: 0, box: 0 })
   })
 
-  it('new deletes the entry', () => {
-    const { p, words } = setup()
-    words.commit({ go: 'new' })
+  it('an unknown word is ignored', () => {
+    const { p, list } = setup()
+    list.cycle({ base: 'nope', original: undefined })
+    expect(p.words.nope).toBeUndefined()
+  })
+})
+
+// bot: lists_builders_test.go TestBuildWordListView, lists_edit_test.go word-list cases
+describe('Word list', () => {
+  it('levelItems: that level only, alphabetical, with status', () => {
+    const { list } = setup()
+    expect(list.levelItems('elementary').map((i) => [i.base, i.status])).toEqual([
+      ['be', 'learned'],
+      ['go', 'study'],
+    ])
+    expect(list.levelItems('pre-intermediate').map((i) => [i.base, i.status])).toEqual([['build', 'skipped']])
+  })
+
+  it('new → study (step 1) → new again', () => {
+    const { p, list } = setup({})
+    list.toggleStudy({ base: 'go', original: undefined })
+    expect(p.words.go).toEqual({ status: 'study', mode: 0, box: 0 })
+    list.toggleStudy({ base: 'go', original: undefined })
     expect(p.words.go).toBeUndefined()
+  })
+
+  it('study → out → back with the original progress', () => {
+    const { p, list } = setup()
+    const original = p.words.go
+    list.toggleStudy({ base: 'go', original })
+    expect(p.words.go).toBeUndefined()
+    list.toggleStudy({ base: 'go', original })
+    expect(p.words.go).toEqual(study(2, 3))
+  })
+
+  it('skipped → study → back to skipped (bot: skipped round trip)', () => {
+    const { p, list } = setup()
+    const original = p.words.build
+    list.toggleStudy({ base: 'build', original })
+    expect(p.words.build).toEqual({ status: 'study', mode: 0, box: 0 })
+    list.toggleStudy({ base: 'build', original })
+    expect(p.words.build).toEqual(skipped)
+  })
+
+  it('learned → study at step 2 from the start → learned again', () => {
+    const { p, list } = setup()
+    const original = p.words.be
+    list.toggleStudy({ base: 'be', original })
+    expect(p.words.be).toEqual(study(2, 0))
+    list.toggleStudy({ base: 'be', original })
+    expect(p.words.be).toEqual(learned)
   })
 })

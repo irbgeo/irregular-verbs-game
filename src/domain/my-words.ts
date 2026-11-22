@@ -1,16 +1,21 @@
 import type { Catalog } from './catalog'
 import { boxMax } from './ladder'
 import { variantOf } from './progress'
-import type { Draft, DraftStatus, ItemArgs, MyWordsItem, Progress, ToggleArgs } from './types'
+import type { DraftStatus, EditArgs, Level, MyWordsItem, Progress, SetArgs, WordProgress } from './types'
 
-// MyWords is the "Мои слова" list (bot: lists.go, My words part).
-// The draft lives in the UI while the screen is open; commit applies it.
+// MyWords is "Мои слова" and "Все слова" (bot: lists.go). Changes apply at
+// once (owner, stage 7); `original` (the entry when first touched on the
+// screen) lets a second tap bring back exactly what was there.
 export interface MyWords {
-  // items: stored study + learned words, alphabetical, status with the draft applied.
-  items(draft: Draft): MyWordsItem[]
-  // toggle returns a new draft with the next status: study → learned → skipped → study.
-  toggle(args: ToggleArgs): Draft
-  commit(draft: Draft): void
+  // studyBases: stored study + learned words, alphabetical
+  studyBases(): string[]
+  items(bases: string[]): MyWordsItem[]
+  // levelItems: every word of the level (not cumulative), alphabetical
+  levelItems(level: Level): MyWordsItem[]
+  // cycle (My words): study → learned → skipped → study
+  cycle(args: EditArgs): void
+  // toggleStudy (Word list): in study ↔ not in study
+  toggleStudy(args: EditArgs): void
 }
 
 class List implements MyWords {
@@ -19,78 +24,77 @@ class List implements MyWords {
     private readonly progress: Progress,
   ) {}
 
-  items(draft: Draft): MyWordsItem[] {
+  studyBases(): string[] {
     const all = Object.keys(this.progress.words)
-    const bases = all.filter((b) => this.stored(b) === 'study' || this.stored(b) === 'learned')
+    const bases = all.filter((b) => this.status(b) === 'study' || this.status(b) === 'learned')
     bases.sort()
+    return bases
+  }
 
-    const items = bases.map((base) => {
-      const itemArgs: ItemArgs = {
-        base: base,
-        draft: draft,
-      }
-      const item = this.item(itemArgs)
-      return item
-    })
+  items(bases: string[]): MyWordsItem[] {
+    const items = bases.map((base) => this.item(base))
     return items
   }
 
-  toggle(args: ToggleArgs): Draft {
-    const draft = {
-      ...args.draft,
-    }
+  levelItems(level: Level): MyWordsItem[] {
+    const bases = this.catalog.basesOf(level)
+    const items = this.items(bases)
+    return items
+  }
+
+  cycle(args: EditArgs): void {
     if (this.catalog.verb(args.base) === undefined) {
-      return draft
+      return
     }
-
-    const stored = this.stored(args.base)
-    const effective = draft[args.base] ?? stored
-    const target = nextStatus(effective)
-    if (target === stored) {
-      delete draft[args.base]
-    } else {
-      draft[args.base] = target
+    const setArgs: SetArgs = {
+      edit: args,
+      target: nextStatus(this.status(args.base)),
     }
-    return draft
+    this.set(setArgs)
   }
 
-  commit(draft: Draft): void {
+  toggleStudy(args: EditArgs): void {
+    if (this.catalog.verb(args.base) === undefined) {
+      return
+    }
+    let target: DraftStatus = 'study'
+    if (this.status(args.base) === 'study') {
+      const back = args.original?.status ?? 'new'
+      target = back === 'study' ? 'new' : back
+    }
+    const setArgs: SetArgs = {
+      edit: args,
+      target: target,
+    }
+    this.set(setArgs)
+  }
+
+  // set writes the target status; the original status gets the original entry back.
+  private set(args: SetArgs): void {
     const words = this.progress.words
-    for (const [base, target] of Object.entries(draft)) {
-      if (target === 'new') {
-        delete words[base]
-        continue
-      }
-      if (target === 'study') {
-        const old = words[base]
-        words[base] = {
-          status: 'study',
-          mode: old?.mode ?? 0,
-          box: old?.box ?? 0,
-        }
-        continue
-      }
-      if (target === 'learned') {
-        words[base] = {
-          status: 'learned',
-          mode: 2,
-          box: boxMax,
-        }
-        continue
-      }
-      words[base] = {
-        status: 'skipped',
-        mode: 0,
-        box: 0,
-      }
+    const base = args.edit.base
+    const original = args.edit.original
+    if (original !== undefined && original.status === args.target) {
+      words[base] = { ...original }
+      return
     }
+    if (args.target === 'new') {
+      delete words[base]
+      return
+    }
+    const from = this.status(base)
+    words[base] = fresh(args.target, from)
   }
 
-  private item(args: ItemArgs): MyWordsItem {
-    const base = args.base
+  private status(base: string): DraftStatus {
+    const status = this.progress.words[base]?.status ?? 'new'
+    return status
+  }
+
+  private item(base: string): MyWordsItem {
     const variant = variantOf(this.progress)
     const v = this.catalog.verb(base)
-    const status = args.draft[base] ?? this.stored(base)
+    const status = this.status(base)
     if (v === undefined) {
       return {
         base: base,
@@ -111,10 +115,29 @@ class List implements MyWords {
       translation: v.translations.join(', '),
     }
   }
+}
 
-  private stored(base: string): DraftStatus {
-    const status = this.progress.words[base]?.status ?? 'new'
-    return status
+// fresh: a new entry for a status reached by a tap (not the original one).
+// Back to study from learned = review at the typing step; otherwise Learn starts it at step 1.
+function fresh(target: 'study' | 'learned' | 'skipped', from: DraftStatus): WordProgress {
+  if (target === 'learned') {
+    return {
+      status: 'learned',
+      mode: 2,
+      box: boxMax,
+    }
+  }
+  if (target === 'skipped') {
+    return {
+      status: 'skipped',
+      mode: 0,
+      box: 0,
+    }
+  }
+  return {
+    status: 'study',
+    mode: from === 'learned' ? 2 : 0,
+    box: 0,
   }
 }
 
@@ -129,7 +152,7 @@ function nextStatus(status: DraftStatus): DraftStatus {
   return 'study'
 }
 
-// newMyWords creates the My words list over a player's Progress.
+// newMyWords creates the word lists over a player's Progress.
 export function newMyWords(
   catalog: Catalog,
   progress: Progress,

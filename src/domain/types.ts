@@ -163,7 +163,6 @@ export interface MyWordsItem {
   translation: string
 }
 
-export type Draft = Record<string, DraftStatus>
 
 // Rng returns an integer in [0, n).
 export type Rng = (n: number) => number
@@ -204,9 +203,17 @@ export interface FeedbackArgs {
   addedToStudy: boolean
 }
 
-export interface ToggleArgs {
-  draft: Draft
+// SetArgs: write `target` for the tapped word (`new` deletes the entry).
+export interface SetArgs {
+  edit: EditArgs
+  target: DraftStatus
+}
+
+// EditArgs: a tap on a word in My words / Word list; `original` is its entry
+// when first touched on this screen (undefined = it had none).
+export interface EditArgs {
   base: string
+  original: WordProgress | undefined
 }
 
 export interface LadderArgs {
@@ -252,11 +259,6 @@ export interface ShuffleArgs {
 export interface WordArgs {
   words: Record<string, WordProgress>
   base: string
-}
-
-export interface ItemArgs {
-  base: string
-  draft: Draft
 }
 
 export interface ResolveArgs {

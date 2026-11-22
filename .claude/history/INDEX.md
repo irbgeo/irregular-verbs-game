@@ -5,3 +5,4 @@
 - [2026-11-22-game-layer](2026-11-22-game-layer/) — [done] stage 4: XP, day streak, level progress, achievements, Progress screen
 - [2026-11-22-arcade](2026-11-22-arcade/) — [done] stage 5: Arcade (60 s, x2/x3, −3 s, personal best; VK board needs a server → later)
 - [2026-11-22-polish-release](2026-11-22-polish-release/) — [active] stage 6: sounds, motion, ads (VK catalog requires monetization), legal texts, moderation checklist
+- [2026-11-22-word-list](2026-11-22-word-list/) — [active] stage 7: all words by level, instant add/remove (My words instant too)

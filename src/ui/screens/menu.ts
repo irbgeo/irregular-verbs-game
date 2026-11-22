@@ -43,6 +43,11 @@ const html = `
     <span class="row-title">Мои слова</span>
     <span class="muted" data-ref="wordsCount"></span>
   </button>
+  <button type="button" class="row-btn" data-ref="allWords">
+    <svg class="icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    <span class="row-title">Все слова</span>
+    <span class="muted">по уровням</span>
+  </button>
   <div class="grow"></div>
   <nav class="row2" aria-label="Ещё">
     <button type="button" class="btn small" data-ref="progress">Прогресс</button>
@@ -73,6 +78,7 @@ export function renderMenu(view: MenuView): HTMLElement {
   r.learn.addEventListener('click', () => view.actions.openLearn())
   r.test.addEventListener('click', () => view.actions.openTest())
   r.words.addEventListener('click', () => view.actions.openMyWords())
+  r.allWords.addEventListener('click', () => view.actions.openWordList())
   r.settings.addEventListener('click', () => view.actions.openSettings())
   r.progress.addEventListener('click', () => view.actions.openProgress())
   r.arcade.addEventListener('click', () => view.actions.openArcade())

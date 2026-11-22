@@ -15,11 +15,8 @@ const html = `
   <p class="muted small-text" data-ref="counts"></p>
   <p class="hint">Нажмите на статус: учу → выучено → не учить</p>
   <ul class="word-list" data-ref="list"></ul>
-  <p class="muted center" data-ref="empty" hidden>Пока пусто. Слова появятся после Теста.</p>
-  <div class="bottom-bar" data-ref="bar" hidden>
-    <button type="button" class="btn small" data-ref="cancel">Отменить</button>
-    <button type="button" class="btn btn-primary small" data-ref="save"></button>
-  </div>
+  <p class="muted center" data-ref="empty" hidden>Пока пусто. Слова появятся после Теста — или добавьте их сами.</p>
+  <button type="button" class="btn btn-link" data-ref="all">Все слова</button>
 </main>`
 
 const rowHtml = `
@@ -31,7 +28,7 @@ const rowHtml = `
   <button type="button" class="status" data-ref="status"></button>
 </li>`
 
-// renderMyWords: study + learned words; tap a status to cycle it; save / cancel (mockup 6).
+// renderMyWords: study + learned words; a status tap cycles it at once (mockup 6, stage 7).
 export function renderMyWords(view: MyWordsView): HTMLElement {
   const root = fromTemplate(html)
   const r = refs(root)
@@ -51,10 +48,7 @@ export function renderMyWords(view: MyWordsView): HTMLElement {
     refs(rows[0]).status.dataset.autofocus = ''
   }
 
-  r.bar.hidden = view.changes === 0
-  r.save.textContent = `Сохранить (${view.changes})`
-  r.save.addEventListener('click', () => view.actions.myWordsSave())
-  r.cancel.addEventListener('click', () => view.actions.myWordsCancel())
+  r.all.addEventListener('click', () => view.actions.openWordList())
   r.back.addEventListener('click', () => view.actions.toMenu())
   return root
 }
@@ -69,6 +63,7 @@ function renderRow(args: RowArgs): HTMLElement {
   r.translation.textContent = item.translation
   r.status.textContent = statusNames[item.status]
   r.status.classList.add(item.status)
+  r.status.dataset.key = item.base
   r.status.setAttribute('aria-label', `${item.base}: ${statusNames[item.status]}, нажмите, чтобы изменить`)
   r.status.addEventListener('click', () => actions.myWordsToggle(item.base))
   return row

@@ -113,9 +113,8 @@ describe('settings', () => {
     byText(root, 'Американский').click()
     expect(actions.setSettings).toHaveBeenLastCalledWith({ variant: 'us', level: 'elementary' })
 
-    const select = root.querySelector('select')!
-    select.value = 'intermediate'
-    select.dispatchEvent(new Event('change'))
+    expect(root.querySelector('select')).toBeNull()
+    root.querySelector<HTMLElement>('[data-level="intermediate"]')!.click()
     expect(actions.setSettings).toHaveBeenLastCalledWith({ variant: 'gb', level: 'intermediate' })
   })
 

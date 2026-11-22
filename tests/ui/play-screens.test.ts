@@ -101,13 +101,12 @@ describe('learn screen', () => {
 })
 
 describe('my words screen', () => {
-  it('lists words, toggles a status, saves or cancels', () => {
+  it('lists words; a status tap is sent at once (no save bar)', () => {
     const actions = stubActions()
     const root = renderMyWords({
       actions,
       studying: 1,
       learned: 1,
-      changes: 1,
       items: [
         { base: 'be', status: 'learned', past: 'was/were', participle: 'been', translation: 'быть' },
         { base: 'go', status: 'skipped', past: 'went', participle: 'gone', translation: 'идти' },
@@ -117,15 +116,14 @@ describe('my words screen', () => {
     expect(root.textContent).toContain('не учить')
 
     byText(root, 'не учить').click()
-    byText(root, 'Сохранить (1)').click()
-    byText(root, 'Отменить').click()
     expect(actions.myWordsToggle).toHaveBeenCalledWith('go')
-    expect(actions.myWordsSave).toHaveBeenCalled()
-    expect(actions.myWordsCancel).toHaveBeenCalled()
+    expect(root.textContent).not.toContain('Сохранить')
+    byText(root, 'Все слова').click()
+    expect(actions.openWordList).toHaveBeenCalled()
   })
 
   it('empty list hint', () => {
-    const root = renderMyWords({ actions: stubActions(), studying: 0, learned: 0, changes: 0, items: [] })
+    const root = renderMyWords({ actions: stubActions(), studying: 0, learned: 0, items: [] })
     expect(root.textContent).toContain('Пока пусто')
   })
 })

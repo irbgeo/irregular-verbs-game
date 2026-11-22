@@ -114,27 +114,58 @@ describe('game: Learn, My words, Settings', () => {
     expect(p.learn?.recent).toEqual(['go'])
   })
 
-  it('My words: toggle then save writes the draft', () => {
+  it('My words: a tap applies at once; a "не учить" word stays until leaving; full cycle restores', () => {
     const p = onboarded()
     p.words = { go: { status: 'study', mode: 2, box: 3 } }
-    const { game, root } = setup(p)
+    const { game, root, saver } = setup(p)
     game.openMyWords()
     game.myWordsToggle('go')
-    expect(root.textContent).toContain('Сохранить (1)')
-
-    game.myWordsSave()
     expect(p.words.go.status).toBe('learned')
+    expect(saver.markDirty).toHaveBeenLastCalledWith({ words: true, sessions: false })
+
+    game.myWordsToggle('go')
+    expect(p.words.go.status).toBe('skipped')
+    expect(root.textContent).toContain('не учить')
+
+    game.myWordsToggle('go')
+    expect(p.words.go).toEqual({ status: 'study', mode: 2, box: 3 })
+
+    game.myWordsToggle('go')
+    game.myWordsToggle('go')
+    game.toMenu()
+    game.openMyWords()
+    expect(root.textContent).not.toContain('went')
   })
 
-  it('My words: cancel drops the draft', () => {
+  it('Word list: opens on my level, switches level, a tap adds / removes at once', () => {
     const p = onboarded()
-    p.words = { go: { status: 'study', mode: 2, box: 3 } }
-    const { game } = setup(p)
-    game.openMyWords()
-    game.myWordsToggle('go')
-    game.myWordsCancel()
+    const { game, root } = setup(p)
+    game.openWordList()
+    expect(game.screen()).toBe('word-list')
+    expect(root.textContent).toContain('go — went — gone')
+    expect(root.textContent).not.toContain('build')
 
-    expect(p.words.go.status).toBe('study')
+    game.wordListToggle('go')
+    expect(p.words.go).toEqual({ status: 'study', mode: 0, box: 0 })
+    game.wordListToggle('go')
+    expect(p.words.go).toBeUndefined()
+
+    game.wordListLevel('pre-intermediate')
+    expect(root.textContent).toContain('build — built — built')
+  })
+
+  it('re-render of the same screen keeps scroll and focus', () => {
+    const p = onboarded()
+    const { game, root } = setup(p)
+    document.body.append(root)
+    game.openWordList()
+    root.scrollTop = 120
+    root.querySelector<HTMLElement>('[data-key="go"]')!.focus()
+    game.wordListToggle('go')
+
+    expect(root.scrollTop).toBe(120)
+    expect((document.activeElement as HTMLElement).dataset.key).toBe('go')
+    root.remove()
   })
 
   it('changing settings clears saved sessions', () => {
@@ -212,7 +243,7 @@ describe('game: XP, streak, achievements (stage 4)', () => {
     const { game } = setup(p)
     game.openMyWords()
     game.myWordsToggle('go')
-    game.myWordsSave()
+    expect(p.words.go.status).toBe('learned')
     expect(p.game.xp).toBe(50)
 
     game.resetProgress()

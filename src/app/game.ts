@@ -17,18 +17,19 @@ import { isOnboarded, newProgress } from '../domain/progress'
 import { newTestFlow, type TestFlow } from '../domain/test-flow'
 import type {
   AnswerEvent,
+  EditArgs,
+  Level,
+  WordProgress,
   ArcadeAnswer,
   ArcadeAnswerArgs,
   ArcadeRound,
   ExtendArgs,
   DayArgs,
-  Draft,
   LearnStep,
   Progress,
   StreakArgs,
   TestSession,
   TestStep,
-  ToggleArgs,
   UnlockArgs,
 } from '../domain/types'
 import { renderArcade, updateArcadeTimer } from '../ui/screens/arcade'
@@ -36,6 +37,7 @@ import { renderArcadeResult } from '../ui/screens/arcade-result'
 import { renderLearn, renderLearnEmpty } from '../ui/screens/learn'
 import { renderMenu } from '../ui/screens/menu'
 import { renderMyWords } from '../ui/screens/my-words'
+import { renderWordList } from '../ui/screens/word-list'
 import { renderOnboarding } from '../ui/screens/onboarding'
 import { renderProgress } from '../ui/screens/progress'
 import { renderSettings } from '../ui/screens/settings'
@@ -63,6 +65,7 @@ import type {
   TestView,
   TimerArgs,
   WordCounts,
+  WordListView,
 } from '../ui/types'
 import type { Saver } from './saver'
 import type { DirtyKeys, GameDeps, LearnBefore } from './types'
@@ -78,6 +81,7 @@ export type Screen =
   | 'learn'
   | 'learn-empty'
   | 'my-words'
+  | 'word-list'
   | 'settings'
   | 'progress'
   | 'arcade'
@@ -90,6 +94,13 @@ export interface Game extends Actions {
   // onVisibility pauses / resumes an Arcade round when the page is hidden / shown.
   onVisibility(hidden: boolean): void
 }
+
+// Screens re-drawn in place after a tap keep their scroll and focus.
+const keepScreens: Screen[] = [
+  'my-words',
+  'word-list',
+  'settings',
+]
 
 // The Arcade timer text is redrawn this often.
 const tickMs = 250
@@ -109,7 +120,11 @@ class Controller implements Game {
   private current: Screen = 'onboarding'
   private testStep: TestStep | null = null
   private learnStep: LearnStep | null = null
-  private draft: Draft = {}
+  // My words: the words shown on this visit (a "не учить" word stays until leaving)
+  private myWordsShown: string[] = []
+  // the entry of each word when first tapped on this list visit (second tap restores it)
+  private originals = new Map<string, WordProgress | undefined>()
+  private wordLevel: Level = 'elementary'
   // XP of the last answer, shown as "+N XP"
   private lastXp = 0
   private readonly arcade: Arcade
@@ -120,6 +135,8 @@ class Controller implements Game {
   private readonly learnFlow: LearnFlow
   private readonly myWords: MyWords
   private readonly levelCounts: LevelCounts
+  // words of each level alone (the word list shows one level)
+  private readonly levelOnly: LevelCounts
 
   private readonly catalog: Catalog
   private readonly progress: Progress
@@ -145,6 +162,8 @@ class Controller implements Game {
     this.arcade = newArcade(catalog, progress, rng)
     const counts = levels.map((l) => [l, catalog.basesUpTo(l).length])
     this.levelCounts = Object.fromEntries(counts) as LevelCounts
+    const only = levels.map((l) => [l, catalog.basesOf(l).length])
+    this.levelOnly = Object.fromEntries(only) as LevelCounts
   }
 
   start(): void {
@@ -298,6 +317,18 @@ class Controller implements Game {
     }
   }
 
+  // edit remembers the word's entry at the first tap on this visit.
+  private edit(base: string): EditArgs {
+    if (!this.originals.has(base)) {
+      const entry = this.progress.words[base]
+      this.originals.set(base, entry === undefined ? undefined : { ...entry })
+    }
+    return {
+      base: base,
+      original: this.originals.get(base),
+    }
+  }
+
   private startTimer(): void {
     this.timer = setInterval(() => this.tick(), tickMs)
   }
@@ -384,29 +415,35 @@ class Controller implements Game {
   }
 
   openMyWords(): void {
-    this.draft = {}
+    this.myWordsShown = this.myWords.studyBases()
+    this.originals = new Map()
     this.show('my-words')
   }
 
+  // myWordsToggle: study → learned → skipped → study, applied at once (stage 7).
   myWordsToggle(base: string): void {
-    const toggleArgs: ToggleArgs = {
-      draft: this.draft,
-      base: base,
-    }
-    this.draft = this.myWords.toggle(toggleArgs)
-    this.show('my-words')
-  }
-
-  myWordsSave(): void {
-    this.myWords.commit(this.draft)
-    this.draft = {}
+    const editArgs = this.edit(base)
+    this.myWords.cycle(editArgs)
     this.saver.markDirty(wordsOnly)
     this.show('my-words')
   }
 
-  myWordsCancel(): void {
-    this.draft = {}
-    this.show('my-words')
+  openWordList(): void {
+    this.wordLevel = this.choice().level
+    this.originals = new Map()
+    this.show('word-list')
+  }
+
+  wordListLevel(level: Level): void {
+    this.wordLevel = level
+    this.show('word-list')
+  }
+
+  wordListToggle(base: string): void {
+    const editArgs = this.edit(base)
+    this.myWords.toggleStudy(editArgs)
+    this.saver.markDirty(wordsOnly)
+    this.show('word-list')
   }
 
   openSettings(): void {
@@ -524,9 +561,21 @@ class Controller implements Game {
       clearInterval(this.timer)
       this.timer = null
     }
+    // a list re-drawn after a tap keeps its scroll and the tapped button's focus
+    const keep = screen === this.current && keepScreens.includes(screen)
+    const scroll = this.root.scrollTop
+    const active = document.activeElement
+    const focusKey = active instanceof HTMLElement ? active.dataset.key : undefined
+
     this.current = screen
     const el = this.render()
     this.root.replaceChildren(el)
+    if (keep) {
+      this.root.scrollTop = scroll
+      const keyed = [...el.querySelectorAll<HTMLElement>('[data-key]')]
+      keyed.find((k) => k.dataset.key === focusKey)?.focus()
+      return
+    }
     const main = el.querySelector<HTMLElement>('[data-autofocus]')
     main?.focus()
   }
@@ -545,6 +594,8 @@ class Controller implements Game {
         return this.renderLearn()
       case 'my-words':
         return this.renderMyWords()
+      case 'word-list':
+        return this.renderWordList()
       case 'settings':
         return this.renderSettings()
       case 'progress':
@@ -704,15 +755,26 @@ class Controller implements Game {
 
   private renderMyWords(): HTMLElement {
     const counts = this.wordCounts()
-    const items = this.myWords.items(this.draft)
+    const items = this.myWords.items(this.myWordsShown)
     const view: MyWordsView = {
       actions: this,
       items: items,
-      changes: Object.keys(this.draft).length,
       studying: counts.studying,
       learned: counts.learned,
     }
     const el = renderMyWords(view)
+    return el
+  }
+
+  private renderWordList(): HTMLElement {
+    const items = this.myWords.levelItems(this.wordLevel)
+    const view: WordListView = {
+      actions: this,
+      level: this.wordLevel,
+      levelCounts: this.levelOnly,
+      items: items,
+    }
+    const el = renderWordList(view)
     return el
   }
 

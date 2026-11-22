@@ -29,9 +29,11 @@ export interface Actions {
   learnType(text: string): void
   learnReveal(): void
   openMyWords(): void
+  // myWordsToggle: the status tap, applied at once (stage 7)
   myWordsToggle(base: string): void
-  myWordsSave(): void
-  myWordsCancel(): void
+  openWordList(): void
+  wordListLevel(level: Level): void
+  wordListToggle(base: string): void
   openSettings(): void
   setSettings(choice: SettingsChoice): void
   resetProgress(): void
@@ -94,6 +96,14 @@ export interface ArcadeResultView {
   canReward: boolean
 }
 
+export interface LevelPickerArgs {
+  counts: LevelCounts
+  selected: Level
+  // the group's accessible name
+  label: string
+  onPick: (level: Level) => void
+}
+
 export interface LastArgs {
   el: HTMLElement
   view: ArcadeView
@@ -134,9 +144,15 @@ export interface LearnEmptyView {
 export interface MyWordsView {
   actions: Actions
   items: MyWordsItem[]
-  changes: number
   studying: number
   learned: number
+}
+
+export interface WordListView {
+  actions: Actions
+  level: Level
+  levelCounts: LevelCounts
+  items: MyWordsItem[]
 }
 
 export interface SettingsView {
