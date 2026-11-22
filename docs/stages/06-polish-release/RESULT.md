@@ -59,3 +59,19 @@ implemented in one go; monetization chosen by the owner («Реклама в э�
 
 - Interstitial ads are shown only when leaving result screens to the menu,
   not on «Ещё раунд» — fewer ads for players who replay Arcade.
+
+## Fix to match the VK ads docs (2026-11-22)
+
+Read on dev.vk.ru: mini-apps/monetization/ad/overview, ad/implementation,
+bridge/VKWebAppCheckNativeAds, VKWebAppShowNativeAds, withdrawal/overview
+(the games monetization page returns HTTP 500).
+- «+15 секунд за рекламу» is offered only after `VKWebAppCheckNativeAds`
+  says a rewarded ad is ready (`Platform.hasAd`); no ad → no button (the
+  «Реклама сейчас недоступна» toast stays only as a fallback if showing fails).
+- The interstitial now plays **before** the menu is drawn; taps during an
+  ad are ignored (no double ads).
+- Facts for the owner: until moderation passes, ads run in **test mode**
+  (impressions not counted); counting starts after cashout registration
+  (self-employed / ИП / legal entity — not individuals since 1 Apr 2025) and
+  moderation. No separate "enable ads" switch was found in the docs.
+- `make build`: 314 tests pass.

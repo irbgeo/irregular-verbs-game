@@ -145,6 +145,8 @@ class Controller implements Game {
   private readonly sound: Sound
   private readonly root: HTMLElement
   private readonly ads: AdPolicy = newAdPolicy()
+  // an ad is on screen: ignore taps that would leave (no double ads)
+  private adPlaying = false
 
   constructor(deps: GameDeps) {
     this.catalog = deps.catalog
@@ -352,11 +354,18 @@ class Controller implements Game {
     this.startTimer()
   }
 
+  private async adThenMenu(): Promise<void> {
+    await this.showAd('interstitial')
+    this.show('menu')
+  }
+
   // showAd: sound off while the ad plays; any shown ad starts the 60 s gap.
   private async showAd(format: AdFormat): Promise<boolean> {
+    this.adPlaying = true
     this.sound.mute(true)
     const shown = await this.platform.showAd(format)
     this.sound.mute(false)
+    this.adPlaying = false
     if (shown) {
       this.ads.shown(Date.now())
     }
@@ -407,10 +416,26 @@ class Controller implements Game {
       correct: round.correct,
       wrong: round.wrong,
       bestRun: round.bestRun,
-      canReward: !round.extended,
+      // shown only after the ad check succeeds (VK: check before offering)
+      canReward: false,
     }
     this.saver.markDirty(wordsOnly)
     this.saver.flushSoon()
+    this.show('arcade-result')
+    void this.offerReward(round)
+  }
+
+  // offerReward shows «+15 секунд за рекламу» when a rewarded ad is ready for this round.
+  private async offerReward(round: ArcadeRound): Promise<void> {
+    if (round.extended) {
+      return
+    }
+    const ready = await this.platform.hasAd('reward')
+    const sameResult = this.current === 'arcade-result' && this.arcade.round() === round
+    if (!ready || !sameResult || this.arcadeEnd === null || round.extended) {
+      return
+    }
+    this.arcadeEnd.canReward = true
     this.show('arcade-result')
   }
 
@@ -469,14 +494,19 @@ class Controller implements Game {
     this.show('onboarding')
   }
 
-  // toMenu: leaving a finished Arcade round or Test may show one interstitial ad.
+  // toMenu: leaving a finished Arcade round or Test may show one interstitial
+  // ad — before the menu is drawn (VK recommendation).
   toMenu(): void {
+    if (this.adPlaying) {
+      return
+    }
     const finished = this.current === 'arcade-result' || this.current === 'test-done'
     this.saver.flushSoon()
-    this.show('menu')
     if (finished && this.ads.canShow(Date.now())) {
-      void this.showAd('interstitial')
+      void this.adThenMenu()
+      return
     }
+    this.show('menu')
   }
 
   // learnBefore: what the answered word looked like before the answer.

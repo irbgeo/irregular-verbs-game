@@ -40,6 +40,7 @@ export function newFakePlatform(): FakePlatform {
     setTheme: (theme: Theme) => {
       listeners.forEach((l) => l(theme))
     },
+    hasAd: async () => fake.adResult,
     showAd: async (format: AdFormat) => {
       fake.ads.push(format)
       return fake.adResult

@@ -17,6 +17,8 @@ export interface Platform {
   save(entry: StorageEntry): Promise<void>
   // onTheme calls the listener with the host's theme now (when known) and on every change.
   onTheme(listener: ThemeListener): void
+  // hasAd: an ad of this format is ready (VK: check before offering a rewarded ad); never throws.
+  hasAd(format: AdFormat): Promise<boolean>
   // showAd: true when an ad was shown to the end (reward: earned); never throws.
   showAd(format: AdFormat): Promise<boolean>
   onHide(listener: HideListener): void

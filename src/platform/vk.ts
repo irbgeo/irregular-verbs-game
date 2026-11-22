@@ -51,6 +51,19 @@ class VKPlatform implements Platform {
     })
   }
 
+  async hasAd(format: AdFormat): Promise<boolean> {
+    const adParams = {
+      ad_format: format,
+    }
+    try {
+      const check = await this.bridge.send('VKWebAppCheckNativeAds', adParams)
+      return check.result
+    } catch (err) {
+      console.warn('vk: ad check failed', err)
+      return false
+    }
+  }
+
   async showAd(format: AdFormat): Promise<boolean> {
     const adParams = {
       ad_format: format,

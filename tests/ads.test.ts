@@ -34,6 +34,18 @@ describe('VK ads', () => {
     expect(await newVKPlatform(bridge).showAd('reward')).toBe(false)
   })
 
+  it('hasAd only checks (VKWebAppCheckNativeAds), never shows', async () => {
+    const { bridge } = bridgeWith(async () => ({ result: true }))
+    expect(await newVKPlatform(bridge).hasAd('reward')).toBe(true)
+    expect(bridge.send).toHaveBeenCalledTimes(1)
+    expect(bridge.send).toHaveBeenCalledWith('VKWebAppCheckNativeAds', { ad_format: 'reward' })
+
+    const failing = bridgeWith(async () => {
+      throw new Error('offline')
+    })
+    expect(await newVKPlatform(failing.bridge).hasAd('reward')).toBe(false)
+  })
+
   it('onHide follows VKWebAppViewHide / VKWebAppViewRestore', () => {
     const { bridge, emit } = bridgeWith(async () => ({}))
     const got: boolean[] = []

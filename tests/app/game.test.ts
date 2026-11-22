@@ -370,10 +370,12 @@ describe('game: sound and ads (stage 6)', () => {
     expect(platform.ads).toEqual(['interstitial'])
   })
 
-  it('«+15 секунд за рекламу» continues the round once', async () => {
+  it('«+15 секунд за рекламу» appears after the ad check and continues the round once', async () => {
     const { game, root, platform } = setup(onboarded())
     game.openArcade()
     vi.advanceTimersByTime(61_000)
+    expect(root.textContent).not.toContain('+15 секунд за рекламу')
+    await vi.advanceTimersByTimeAsync(0)
     byText(root, '+15 секунд за рекламу').click()
     await vi.advanceTimersByTimeAsync(0)
 
@@ -382,19 +384,32 @@ describe('game: sound and ads (stage 6)', () => {
     expect(root.querySelector('[data-ref="time"]')?.textContent).toBe('0:15')
 
     vi.advanceTimersByTime(16_000)
+    await vi.advanceTimersByTimeAsync(0)
     expect(game.screen()).toBe('arcade-result')
     expect(root.textContent).not.toContain('+15 секунд за рекламу')
   })
 
-  it('no ad available → a toast, the result stays', async () => {
+  it('no rewarded ad available → no button at all (VK: check before offering)', async () => {
     const { game, root, platform } = setup(onboarded())
     platform.adResult = false
     game.openArcade()
     vi.advanceTimersByTime(61_000)
-    byText(root, '+15 секунд за рекламу').click()
     await vi.advanceTimersByTimeAsync(0)
 
     expect(game.screen()).toBe('arcade-result')
-    expect(document.body.textContent).toContain('Реклама сейчас недоступна')
+    expect(root.textContent).not.toContain('+15 секунд за рекламу')
+    expect(platform.ads).toEqual([])
+  })
+
+  it('the interstitial plays before the menu is drawn (VK recommendation)', async () => {
+    const { game, platform } = setup(onboarded())
+    game.openArcade()
+    vi.advanceTimersByTime(61_000)
+    game.toMenu()
+    expect(game.screen()).toBe('arcade-result')
+    expect(platform.ads).toEqual(['interstitial'])
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(game.screen()).toBe('menu')
   })
 })

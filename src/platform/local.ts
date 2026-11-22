@@ -34,6 +34,11 @@ class LocalPlatform implements Platform {
   }
 
   // No ads outside VK (local dev).
+  async hasAd(format: AdFormat): Promise<boolean> {
+    void format
+    return false
+  }
+
   async showAd(format: AdFormat): Promise<boolean> {
     void format
     return false
